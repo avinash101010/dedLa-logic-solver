@@ -1,0 +1,918 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Deductive Logic Challenge & Matrix Solver</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome for UI icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f0f7ff',
+              100: '#e0effe',
+              500: '#0284c7',
+              600: '#0369a1',
+              700: '#075985',
+              900: '#0c4a6e',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+    body {
+      font-family: 'Inter', sans-serif;
+      user-select: none;
+    }
+    
+    .cell-pop {
+      animation: popIn 0.18s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    @keyframes popIn {
+      0% { transform: scale(0.75); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    
+    .pulse-target {
+      animation: pulseGlow 1.8s infinite ease-in-out;
+    }
+    @keyframes pulseGlow {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(2, 132, 199, 0.4); }
+      50% { box-shadow: 0 0 0 6px rgba(2, 132, 199, 0); }
+    }
+
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #94a3b8;
+      border-radius: 9999px;
+    }
+    .dark ::-webkit-scrollbar-thumb {
+      background: #475569;
+    }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-800 dark:bg-slate-900 dark:text-slate-100 min-h-screen transition-colors duration-200 flex flex-col">
+
+  <!-- TOP HEADER / NAVBAR -->
+  <header class="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 shadow-sm sticky top-0 z-30">
+    <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-indigo-600 flex items-center justify-center text-white shadow-md">
+          <i class="fa-solid fa-shapes text-xl"></i>
+        </div>
+        <div>
+          <h1 class="text-lg font-bold leading-tight tracking-tight">Deductive Logic Matrix</h1>
+          <p class="text-xs text-slate-500 dark:text-slate-400">Latin Square Assessment Tool (Up to 7x7)</p>
+        </div>
+      </div>
+
+      <!-- Navigation Modes & Settings -->
+      <div class="flex items-center space-x-2 sm:space-x-4">
+        <div class="bg-slate-200 dark:bg-slate-700 p-1 rounded-xl flex space-x-1 text-xs sm:text-sm font-semibold">
+          <button id="btn-mode-play" onclick="switchMode('play')" class="px-3 py-1.5 rounded-lg bg-white dark:bg-slate-800 text-brand-600 dark:text-brand-500 shadow-sm transition">
+            <i class="fa-solid fa-gamepad mr-1.5"></i>Play Game
+          </button>
+          <button id="btn-mode-solver" onclick="switchMode('solver')" class="px-3 py-1.5 rounded-lg text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition">
+            <i class="fa-solid fa-calculator mr-1.5"></i>Custom Solver
+          </button>
+        </div>
+
+        <button id="theme-toggle" onclick="toggleDarkMode()" class="p-2 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition" title="Toggle Theme">
+          <i class="fa-solid fa-moon text-lg" id="theme-icon"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN CONTAINER -->
+  <main class="flex-1 max-w-5xl w-full mx-auto p-3 sm:p-6 flex flex-col justify-center">
+
+    <!-- ================= MODE 1: PLAY / PRACTICE GAME ================= -->
+    <section id="play-mode-section" class="flex flex-col items-center space-y-4 sm:space-y-6">
+      
+      <!-- HUD / STATUS BAR -->
+      <div class="w-full max-w-2xl bg-white dark:bg-slate-800 rounded-2xl p-3 sm:p-4 shadow-sm border border-slate-200 dark:border-slate-700 flex flex-wrap items-center justify-between gap-3">
+        <div class="flex items-center space-x-3 sm:space-x-4">
+          <!-- Level Badge -->
+          <div class="text-center">
+            <span class="block text-[10px] sm:text-xs uppercase tracking-wider text-slate-400 font-bold">Level</span>
+            <span id="game-level-display" class="text-lg sm:text-xl font-extrabold text-brand-600 dark:text-brand-500">1</span>
+          </div>
+          <div class="h-8 w-px bg-slate-200 dark:bg-slate-700"></div>
+          
+          <!-- Size Selector -->
+          <div class="text-center">
+            <span class="block text-[10px] sm:text-xs uppercase tracking-wider text-slate-400 font-bold">Grid Size</span>
+            <select id="game-size-select" onchange="changePlayGridSize(parseInt(this.value))" class="bg-slate-100 dark:bg-slate-700 text-xs sm:text-sm font-extrabold text-slate-700 dark:text-slate-200 rounded-lg px-2 py-1 outline-none border border-slate-300 dark:border-slate-600">
+              <option value="3">3x3</option>
+              <option value="4">4x4</option>
+              <option value="5">5x5</option>
+              <option value="6">6x6</option>
+              <option value="7">7x7</option>
+            </select>
+          </div>
+          <div class="h-8 w-px bg-slate-200 dark:bg-slate-700"></div>
+
+          <!-- Difficulty Presets -->
+          <div class="text-center">
+            <span class="block text-[10px] sm:text-xs uppercase tracking-wider text-slate-400 font-bold">Difficulty</span>
+            <select id="game-diff-select" onchange="changeDifficulty(this.value)" class="bg-slate-100 dark:bg-slate-700 text-xs sm:text-sm font-extrabold text-slate-700 dark:text-slate-200 rounded-lg px-2 py-1 outline-none border border-slate-300 dark:border-slate-600">
+              <option value="easy">Single (?) Target</option>
+              <option value="medium">Medium Blanks</option>
+              <option value="hard">Hard Sparse</option>
+            </select>
+          </div>
+          <div class="h-8 w-px bg-slate-200 dark:bg-slate-700"></div>
+
+          <!-- Score -->
+          <div class="text-center">
+            <span class="block text-[10px] sm:text-xs uppercase tracking-wider text-slate-400 font-bold">Score</span>
+            <span id="game-score-display" class="text-lg sm:text-xl font-extrabold text-emerald-600 dark:text-emerald-400">0</span>
+          </div>
+        </div>
+
+        <!-- Timer & Restart -->
+        <div class="flex items-center space-x-2">
+          <div class="bg-slate-100 dark:bg-slate-700/60 px-3 py-1 rounded-xl border border-slate-200 dark:border-slate-600 flex items-center space-x-2">
+            <i class="fa-solid fa-stopwatch text-slate-400"></i>
+            <span id="game-timer-display" class="font-mono text-sm sm:text-base font-bold text-slate-700 dark:text-slate-200">00:45</span>
+          </div>
+          <button onclick="generateNewGameLevel()" class="p-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 rounded-xl transition" title="New Game">
+            <i class="fa-solid fa-rotate-right"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- INSTRUCTION TITLE -->
+      <div class="text-center">
+        <h2 class="text-lg sm:text-2xl font-bold text-slate-800 dark:text-slate-100" id="game-prompt">
+          Please choose the correct answer for "?"
+        </h2>
+        <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
+          Rule: No row or column may contain duplicate symbols.
+        </p>
+      </div>
+
+      <!-- MATRIX BOARD AREA -->
+      <div class="relative bg-slate-200/60 dark:bg-slate-800/80 p-3 sm:p-5 rounded-3xl border border-slate-300 dark:border-slate-700 shadow-inner flex flex-col items-center overflow-x-auto max-w-full">
+        <!-- Matrix Grid -->
+        <div id="play-grid-container" class="grid gap-1.5 sm:gap-2.5 justify-center items-center">
+          <!-- Dynamically Generated Matrix Cells -->
+        </div>
+      </div>
+
+      <!-- OPTIONS PALETTE CARDS -->
+      <div class="w-full max-w-2xl">
+        <div class="text-[11px] uppercase tracking-wider text-slate-400 font-bold mb-2 text-center">Select Symbol Option</div>
+        <div id="play-options-palette" class="flex items-center justify-center gap-2 sm:gap-3 flex-wrap">
+          <!-- Symbol Options -->
+        </div>
+      </div>
+
+      <!-- GAME ACTION BUTTONS -->
+      <div class="flex items-center justify-center space-x-3 pt-1">
+        <button onclick="provideHintPlayMode()" class="px-4 py-2 bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30 font-semibold rounded-xl text-xs sm:text-sm transition flex items-center space-x-2">
+          <i class="fa-regular fa-lightbulb"></i>
+          <span>Get Hint</span>
+        </button>
+        <button onclick="checkPlaySolution()" class="px-6 py-2 bg-brand-600 hover:bg-brand-700 text-white font-semibold rounded-xl text-xs sm:text-sm shadow-md hover:shadow-lg transition flex items-center space-x-2">
+          <i class="fa-solid fa-circle-check"></i>
+          <span>Submit Solution</span>
+        </button>
+      </div>
+
+    </section>
+
+    <!-- ================= MODE 2: CUSTOM PUZZLE SOLVER ================= -->
+    <section id="solver-mode-section" class="hidden flex-col items-center space-y-6">
+      
+      <!-- TOOL CONFIG HEADER -->
+      <div class="w-full max-w-2xl bg-white dark:bg-slate-800 rounded-2xl p-4 sm:p-5 shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div>
+          <h2 class="text-lg font-bold text-slate-800 dark:text-slate-100">Custom Matrix Builder & Solver</h2>
+          <p class="text-xs text-slate-500 dark:text-slate-400">Design any matrix (3x3 up to 7x7), insert known symbols or target `?`, and calculate solutions.</p>
+        </div>
+
+        <!-- Grid Dimension Selector -->
+        <div class="flex items-center space-x-2">
+          <span class="text-xs font-bold text-slate-400 uppercase">Size:</span>
+          <div class="bg-slate-100 dark:bg-slate-700 p-1 rounded-xl flex space-x-1">
+            <button onclick="changeSolverGridSize(3)" id="solver-size-3" class="px-2.5 py-1 rounded-lg font-bold text-xs bg-white dark:bg-slate-800 text-brand-600 dark:text-brand-400 shadow-sm">3x3</button>
+            <button onclick="changeSolverGridSize(4)" id="solver-size-4" class="px-2.5 py-1 rounded-lg font-bold text-xs text-slate-600 dark:text-slate-300">4x4</button>
+            <button onclick="changeSolverGridSize(5)" id="solver-size-5" class="px-2.5 py-1 rounded-lg font-bold text-xs text-slate-600 dark:text-slate-300">5x5</button>
+            <button onclick="changeSolverGridSize(6)" id="solver-size-6" class="px-2.5 py-1 rounded-lg font-bold text-xs text-slate-600 dark:text-slate-300">6x6</button>
+            <button onclick="changeSolverGridSize(7)" id="solver-size-7" class="px-2.5 py-1 rounded-lg font-bold text-xs text-slate-600 dark:text-slate-300">7x7</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- SOLVER MATRIX BOARD -->
+      <div class="w-full max-w-3xl flex flex-col md:flex-row items-center justify-center gap-6">
+        
+        <!-- Interactive Grid Editor -->
+        <div class="bg-slate-200/60 dark:bg-slate-800/80 p-3 sm:p-5 rounded-3xl border border-slate-300 dark:border-slate-700 shadow-inner overflow-x-auto max-w-full">
+          <div id="solver-grid-container" class="grid gap-1.5 sm:gap-2.5 justify-center items-center">
+            <!-- Dynamically populated solver cells -->
+          </div>
+        </div>
+
+        <!-- Symbol Selection Picker Panel -->
+        <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col items-center w-full md:w-64">
+          <span class="text-xs uppercase tracking-wider text-slate-400 font-bold mb-3">Cell Inspector</span>
+          <div id="active-cell-info" class="text-center mb-4">
+            <span class="text-xs text-slate-500 dark:text-slate-400">Click a cell on the grid to set symbols or targets.</span>
+          </div>
+          <div id="solver-symbol-picker" class="grid grid-cols-3 gap-2 w-full hidden">
+            <!-- Buttons to set symbol for active cell -->
+          </div>
+          <div id="solver-picker-actions" class="w-full mt-3 flex flex-col gap-2 hidden">
+            <button onclick="setCellAsTarget()" class="w-full py-2 bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30 rounded-xl font-bold text-xs transition flex items-center justify-center space-x-1.5">
+              <i class="fa-solid fa-question"></i>
+              <span>Mark as Target (?)</span>
+            </button>
+            <button onclick="clearActiveCell()" class="w-full py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 rounded-xl font-bold text-xs transition">
+              Clear Cell
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ACTION CONTROLS -->
+      <div class="flex items-center space-x-3">
+        <button onclick="resetSolverGrid()" class="px-4 py-2 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-semibold rounded-xl text-xs sm:text-sm transition">
+          <i class="fa-solid fa-trash-can mr-1.5"></i>Reset Grid
+        </button>
+        <button onclick="solveCustomPuzzle()" class="px-6 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl text-xs sm:text-sm shadow-md hover:shadow-lg transition flex items-center space-x-2">
+          <i class="fa-solid fa-wand-magic-sparkles"></i>
+          <span>Solve Matrix</span>
+        </button>
+      </div>
+
+      <!-- SOLVER RESULT BANNER -->
+      <div id="solver-status-banner" class="hidden w-full max-w-2xl p-4 rounded-xl border text-sm text-center font-medium"></div>
+
+    </section>
+
+  </main>
+
+  <!-- NOTIFICATION TOAST -->
+  <div id="toast-message" class="fixed bottom-6 left-1/2 -translate-x-1/2 px-6 py-3 rounded-2xl shadow-xl text-white font-semibold text-sm transition-all duration-300 opacity-0 pointer-events-none translate-y-4 z-50 flex items-center space-x-2">
+    <i id="toast-icon" class="fa-solid fa-circle-info"></i>
+    <span id="toast-text">Toast Message</span>
+  </div>
+
+  <!-- JAVASCRIPT LOGIC ENGINE -->
+  <script>
+    /* ==========================================================================
+       SYMBOLS & ASSETS DIRECTORY (Strict Order: Circle, Triangle, Square, Plus, Star, Diamond, Hexagon)
+       ========================================================================== */
+    const SYMBOL_DEFINITIONS = [
+      {
+        id: 'circle_green',
+        name: 'Circle (Green)',
+        render: (size = 40) => `
+          <svg width="${size}" height="${size}" viewBox="0 0 100 100" class="drop-shadow-sm">
+            <circle cx="50" cy="50" r="42" fill="#658200" />
+          </svg>`
+      },
+      {
+        id: 'triangle_blue',
+        name: 'Triangle (Blue)',
+        render: (size = 40) => `
+          <svg width="${size}" height="${size}" viewBox="0 0 100 100" class="drop-shadow-sm">
+            <polygon points="50,8 92,88 8,88" fill="#0055c9" />
+          </svg>`
+      },
+      {
+        id: 'square_red',
+        name: 'Square (Red)',
+        render: (size = 40) => `
+          <svg width="${size}" height="${size}" viewBox="0 0 100 100" class="drop-shadow-sm">
+            <rect x="10" y="10" width="80" height="80" rx="4" fill="#e0301e" />
+          </svg>`
+      },
+      {
+        id: 'plus_purple',
+        name: 'Plus (Purple)',
+        render: (size = 40) => `
+          <svg width="${size}" height="${size}" viewBox="0 0 100 100" class="drop-shadow-sm">
+            <path d="M 38 10 H 62 V 38 H 90 V 62 H 62 V 90 H 38 V 62 H 10 V 38 H 38 Z" fill="#7c3aed" />
+          </svg>`
+      },
+      {
+        id: 'star_amber',
+        name: 'Star (Gold)',
+        render: (size = 40) => `
+          <svg width="${size}" height="${size}" viewBox="0 0 100 100" class="drop-shadow-sm">
+            <polygon points="50,5 64,36 98,39 72,62 80,95 50,77 20,95 28,62 2,39 36,36" fill="#d97706" />
+          </svg>`
+      },
+      {
+        id: 'diamond_teal',
+        name: 'Diamond (Teal)',
+        render: (size = 40) => `
+          <svg width="${size}" height="${size}" viewBox="0 0 100 100" class="drop-shadow-sm">
+            <polygon points="50,5 92,50 50,95 8,50" fill="#0d9488" />
+          </svg>`
+      },
+      {
+        id: 'hexagon_orange',
+        name: 'Hexagon (Orange)',
+        render: (size = 40) => `
+          <svg width="${size}" height="${size}" viewBox="0 0 100 100" class="drop-shadow-sm">
+            <polygon points="50,5 90,26 90,74 50,95 10,74 10,26" fill="#ea580c" />
+          </svg>`
+      }
+    ];
+
+    /* ==========================================================================
+       APP STATE
+       ========================================================================== */
+    let currentMode = 'play';
+    
+    // Play Mode State
+    let playState = {
+      level: 1,
+      score: 0,
+      gridSize: 3,
+      difficulty: 'easy',
+      timerSeconds: 45,
+      timerInterval: null,
+      solutionGrid: [],
+      userGrid: [],
+      targetPos: { r: 2, c: 0 },
+      selectedCell: null,
+      activeSymbols: []
+    };
+
+    // Solver Mode State
+    let solverState = {
+      gridSize: 3,
+      grid: [],
+      activeCell: null,
+      activeSymbols: []
+    };
+
+    /* ==========================================================================
+       LATIN SQUARE CSP SOLVER & GENERATOR ENGINE
+       ========================================================================== */
+    class LatinSquareSolver {
+      static isValidPlacement(grid, size, row, col, symbolIdx) {
+        for (let i = 0; i < size; i++) {
+          if (i !== row && grid[i][col] === symbolIdx) return false;
+          if (i !== col && grid[row][i] === symbolIdx) return false;
+        }
+        return true;
+      }
+
+      static solve(grid, size) {
+        let emptyCell = this.findNextEmptyCell(grid, size);
+        if (!emptyCell) return true;
+
+        const { r, c } = emptyCell;
+
+        for (let symIdx = 0; symIdx < size; symIdx++) {
+          if (this.isValidPlacement(grid, size, r, c, symIdx)) {
+            grid[r][c] = symIdx;
+            if (this.solve(grid, size)) return true;
+            grid[r][c] = null;
+          }
+        }
+        return false;
+      }
+
+      static findNextEmptyCell(grid, size) {
+        for (let r = 0; r < size; r++) {
+          for (let c = 0; c < size; c++) {
+            if (grid[r][c] === null || grid[r][c] === 'TARGET') {
+              return { r, c };
+            }
+          }
+        }
+        return null;
+      }
+
+      static generateFullBoard(size) {
+        let grid = Array.from({ length: size }, () => Array(size).fill(null));
+
+        // Cyclic base initialization guarantees speedy generation even for 7x7
+        let basePermutation = Array.from({ length: size }, (_, i) => i);
+        basePermutation.sort(() => Math.random() - 0.5);
+
+        for (let r = 0; r < size; r++) {
+          for (let c = 0; c < size; c++) {
+            grid[r][c] = basePermutation[(r + c) % size];
+          }
+        }
+
+        // Shuffle rows and columns randomly to create varied Latin Square solutions
+        for (let i = 0; i < size * 2; i++) {
+          let r1 = Math.floor(Math.random() * size);
+          let r2 = Math.floor(Math.random() * size);
+          [grid[r1], grid[r2]] = [grid[r2], grid[r1]];
+
+          let c1 = Math.floor(Math.random() * size);
+          let c2 = Math.floor(Math.random() * size);
+          for (let r = 0; r < size; r++) {
+            [grid[r][c1], grid[r][c2]] = [grid[r][c2], grid[r][c1]];
+          }
+        }
+
+        return grid;
+      }
+    }
+
+    /* ==========================================================================
+       PLAY / PRACTICE GAME LOGIC
+       ========================================================================== */
+
+    function initPlayMode() {
+      playState.level = 1;
+      playState.score = 0;
+      generateNewGameLevel();
+    }
+
+    function changePlayGridSize(size) {
+      playState.gridSize = size;
+      generateNewGameLevel();
+    }
+
+    function changeDifficulty(diff) {
+      playState.difficulty = diff;
+      generateNewGameLevel();
+    }
+
+    function generateNewGameLevel() {
+      clearInterval(playState.timerInterval);
+
+      const N = playState.gridSize;
+      playState.activeSymbols = SYMBOL_DEFINITIONS.slice(0, N);
+
+      // Set timers according to grid size and difficulty
+      playState.timerSeconds = N * 12 + (playState.difficulty === 'hard' ? 20 : 10);
+
+      // Generate complete valid solution
+      playState.solutionGrid = LatinSquareSolver.generateFullBoard(N);
+      playState.userGrid = playState.solutionGrid.map(row => [...row]);
+
+      // Determine Target Question Mark Cell
+      const targetR = Math.floor(Math.random() * N);
+      const targetC = Math.floor(Math.random() * N);
+      playState.targetPos = { r: targetR, c: targetC };
+      playState.userGrid[targetR][targetC] = 'TARGET';
+
+      // Poke holes based on difficulty
+      let totalCells = N * N;
+      let holesCount = 0;
+      let targetHoles = 1;
+
+      if (playState.difficulty === 'medium') {
+        targetHoles = Math.floor(totalCells * 0.35);
+      } else if (playState.difficulty === 'hard') {
+        targetHoles = Math.floor(totalCells * 0.55);
+      }
+
+      while (holesCount < targetHoles - 1) {
+        let hr = Math.floor(Math.random() * N);
+        let hc = Math.floor(Math.random() * N);
+        if (playState.userGrid[hr][hc] !== null && playState.userGrid[hr][hc] !== 'TARGET') {
+          playState.userGrid[hr][hc] = null;
+          holesCount++;
+        }
+      }
+
+      playState.selectedCell = { r: targetR, c: targetC };
+
+      updatePlayHUD();
+      renderPlayGrid();
+      renderPlayOptions();
+      startTimer();
+    }
+
+    function updatePlayHUD() {
+      document.getElementById('game-level-display').innerText = playState.level;
+      document.getElementById('game-score-display').innerText = playState.score;
+      document.getElementById('game-size-select').value = playState.gridSize;
+      document.getElementById('game-diff-select').value = playState.difficulty;
+    }
+
+    function startTimer() {
+      updateTimerDisplay();
+      playState.timerInterval = setInterval(() => {
+        playState.timerSeconds--;
+        updateTimerDisplay();
+        if (playState.timerSeconds <= 0) {
+          clearInterval(playState.timerInterval);
+          showToast('Time expired! Try again.', 'error');
+          setTimeout(() => generateNewGameLevel(), 1500);
+        }
+      }, 1000);
+    }
+
+    function updateTimerDisplay() {
+      const mins = Math.floor(playState.timerSeconds / 60).toString().padStart(2, '0');
+      const secs = (playState.timerSeconds % 60).toString().padStart(2, '0');
+      document.getElementById('game-timer-display').innerText = `${mins}:${secs}`;
+    }
+
+    function getResponsiveCellDimensions(N) {
+      if (N === 3) return { cell: 'w-20 h-20 sm:w-24 sm:h-24', icon: 54 };
+      if (N === 4) return { cell: 'w-16 h-16 sm:w-20 sm:h-20', icon: 42 };
+      if (N === 5) return { cell: 'w-12 h-12 sm:w-16 sm:h-16', icon: 34 };
+      if (N === 6) return { cell: 'w-10 h-10 sm:w-14 sm:h-14', icon: 28 };
+      return { cell: 'w-9 h-9 sm:w-12 sm:h-12', icon: 24 }; // 7x7
+    }
+
+    function renderPlayGrid() {
+      const container = document.getElementById('play-grid-container');
+      const N = playState.gridSize;
+
+      container.style.gridTemplateColumns = `repeat(${N}, minmax(0, 1fr))`;
+      container.innerHTML = '';
+
+      const dim = getResponsiveCellDimensions(N);
+
+      for (let r = 0; r < N; r++) {
+        for (let c = 0; c < N; c++) {
+          const val = playState.userGrid[r][c];
+          const isSelected = playState.selectedCell && playState.selectedCell.r === r && playState.selectedCell.c === c;
+          const isTarget = r === playState.targetPos.r && c === playState.targetPos.c;
+
+          const cellBtn = document.createElement('button');
+          cellBtn.className = `${dim.cell} bg-white dark:bg-slate-700 rounded-xl sm:rounded-2xl flex items-center justify-center transition-all duration-150 border-2 relative cursor-pointer shadow-sm `;
+
+          if (isSelected) {
+            cellBtn.className += 'border-brand-500 ring-4 ring-brand-500/20 z-10 ';
+          } else {
+            cellBtn.className += 'border-slate-200 dark:border-slate-600 hover:border-brand-400 ';
+          }
+
+          if (isTarget && val === 'TARGET') {
+            cellBtn.className += 'pulse-target ';
+          }
+
+          if (val === 'TARGET') {
+            cellBtn.innerHTML = `<span class="text-xl sm:text-3xl font-extrabold text-slate-800 dark:text-slate-100">?</span>`;
+          } else if (val !== null && typeof val === 'number') {
+            const sym = playState.activeSymbols[val];
+            cellBtn.innerHTML = `<div class="cell-pop">${sym.render(dim.icon)}</div>`;
+          } else {
+            cellBtn.innerHTML = `<span class="text-slate-300 dark:text-slate-600 text-[10px] sm:text-xs font-semibold">Empty</span>`;
+          }
+
+          cellBtn.onclick = () => selectPlayCell(r, c);
+          container.appendChild(cellBtn);
+        }
+      }
+    }
+
+    function renderPlayOptions() {
+      const palette = document.getElementById('play-options-palette');
+      palette.innerHTML = '';
+
+      const N = playState.gridSize;
+      const dim = getResponsiveCellDimensions(N);
+
+      playState.activeSymbols.forEach((sym, idx) => {
+        const optionCard = document.createElement('button');
+        optionCard.className = 'w-12 h-12 sm:w-16 sm:h-16 bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 hover:border-brand-500 rounded-xl sm:rounded-2xl flex items-center justify-center shadow-sm hover:shadow-md transition-all transform hover:-translate-y-0.5 active:scale-95 cursor-pointer';
+        
+        optionCard.innerHTML = sym.render(dim.icon + 4);
+        optionCard.onclick = () => applySymbolToSelectedCell(idx);
+        palette.appendChild(optionCard);
+      });
+    }
+
+    function selectPlayCell(r, c) {
+      playState.selectedCell = { r, c };
+      renderPlayGrid();
+    }
+
+    function applySymbolToSelectedCell(symbolIdx) {
+      if (!playState.selectedCell) {
+        showToast('Select a cell first!', 'info');
+        return;
+      }
+      const { r, c } = playState.selectedCell;
+      playState.userGrid[r][c] = symbolIdx;
+      renderPlayGrid();
+    }
+
+    function checkPlaySolution() {
+      const N = playState.gridSize;
+
+      for (let r = 0; r < N; r++) {
+        for (let c = 0; c < N; c++) {
+          if (playState.userGrid[r][c] === null || playState.userGrid[r][c] === 'TARGET') {
+            showToast('Fill in all cells before submitting!', 'error');
+            return;
+          }
+        }
+      }
+
+      let isCorrect = true;
+      for (let r = 0; r < N; r++) {
+        for (let c = 0; c < N; c++) {
+          const val = playState.userGrid[r][c];
+          if (!LatinSquareSolver.isValidPlacement(playState.userGrid, N, r, c, val)) {
+            isCorrect = false;
+            break;
+          }
+        }
+      }
+
+      if (isCorrect) {
+        clearInterval(playState.timerInterval);
+        playState.score += playState.level * 100;
+        playState.level++;
+        showToast('Correct! Puzzle completed!', 'success');
+        setTimeout(() => generateNewGameLevel(), 1200);
+      } else {
+        showToast('Incorrect! Check for repeating symbols.', 'error');
+      }
+    }
+
+    function provideHintPlayMode() {
+      if (!playState.selectedCell) return;
+      const { r, c } = playState.selectedCell;
+      const correctVal = playState.solutionGrid[r][c];
+      playState.userGrid[r][c] = correctVal;
+      renderPlayGrid();
+      showToast('Hint applied!', 'info');
+    }
+
+    /* ==========================================================================
+       MODE 2: CUSTOM SOLVER LOGIC
+       ========================================================================== */
+
+    function initSolverMode() {
+      solverState.gridSize = 3;
+      resetSolverGrid();
+    }
+
+    function changeSolverGridSize(size) {
+      solverState.gridSize = size;
+      [3, 4, 5, 6, 7].forEach(s => {
+        const btn = document.getElementById(`solver-size-${s}`);
+        if (s === size) {
+          btn.className = 'px-2.5 py-1 rounded-lg font-bold text-xs bg-white dark:bg-slate-800 text-brand-600 dark:text-brand-400 shadow-sm';
+        } else {
+          btn.className = 'px-2.5 py-1 rounded-lg font-bold text-xs text-slate-600 dark:text-slate-300';
+        }
+      });
+      resetSolverGrid();
+    }
+
+    function resetSolverGrid() {
+      const N = solverState.gridSize;
+      solverState.grid = Array.from({ length: N }, () => Array(N).fill(null));
+      solverState.activeCell = null;
+      solverState.activeSymbols = SYMBOL_DEFINITIONS.slice(0, N);
+      
+      hideSolverStatusBanner();
+      renderSolverGrid();
+      renderSolverSymbolPicker();
+      updateCellInfoText();
+    }
+
+    function renderSolverGrid() {
+      const container = document.getElementById('solver-grid-container');
+      const N = solverState.gridSize;
+
+      container.style.gridTemplateColumns = `repeat(${N}, minmax(0, 1fr))`;
+      container.innerHTML = '';
+
+      const dim = getResponsiveCellDimensions(N);
+
+      for (let r = 0; r < N; r++) {
+        for (let c = 0; c < N; c++) {
+          const val = solverState.grid[r][c];
+          const isSelected = solverState.activeCell && solverState.activeCell.r === r && solverState.activeCell.c === c;
+
+          const cellBtn = document.createElement('button');
+          cellBtn.className = `${dim.cell} bg-white dark:bg-slate-700 rounded-xl sm:rounded-2xl flex items-center justify-center transition-all duration-150 border-2 relative cursor-pointer shadow-sm `;
+
+          if (isSelected) {
+            cellBtn.className += 'border-brand-500 ring-4 ring-brand-500/20 z-10 ';
+          } else {
+            cellBtn.className += 'border-slate-200 dark:border-slate-600 hover:border-brand-400 ';
+          }
+
+          if (val === 'TARGET') {
+            cellBtn.innerHTML = `<span class="text-xl sm:text-3xl font-extrabold text-amber-500">?</span>`;
+          } else if (val !== null && typeof val === 'number') {
+            const sym = solverState.activeSymbols[val];
+            cellBtn.innerHTML = `<div class="cell-pop">${sym.render(dim.icon)}</div>`;
+          } else {
+            cellBtn.innerHTML = `<span class="text-slate-300 dark:text-slate-600 text-[10px] sm:text-xs font-medium">Empty</span>`;
+          }
+
+          cellBtn.onclick = () => selectSolverCell(r, c);
+          container.appendChild(cellBtn);
+        }
+      }
+    }
+
+    function renderSolverSymbolPicker() {
+      const picker = document.getElementById('solver-symbol-picker');
+      picker.innerHTML = '';
+
+      solverState.activeSymbols.forEach((sym, idx) => {
+        const btn = document.createElement('button');
+        btn.className = 'p-2 bg-slate-100 dark:bg-slate-700/80 hover:bg-brand-50 dark:hover:bg-brand-900/30 border border-slate-200 dark:border-slate-600 hover:border-brand-400 rounded-xl flex items-center justify-center transition shadow-sm';
+        btn.innerHTML = sym.render(28);
+        btn.onclick = () => setSolverCellSymbol(idx);
+        picker.appendChild(btn);
+      });
+    }
+
+    function selectSolverCell(r, c) {
+      solverState.activeCell = { r, c };
+      renderSolverGrid();
+      updateCellInfoText();
+    }
+
+    function updateCellInfoText() {
+      const infoBox = document.getElementById('active-cell-info');
+      const picker = document.getElementById('solver-symbol-picker');
+      const actions = document.getElementById('solver-picker-actions');
+
+      if (!solverState.activeCell) {
+        infoBox.innerHTML = `<span class="text-xs text-slate-500 dark:text-slate-400">Click a cell on the grid to set symbols or targets.</span>`;
+        picker.classList.add('hidden');
+        actions.classList.add('hidden');
+      } else {
+        const { r, c } = solverState.activeCell;
+        infoBox.innerHTML = `<span class="text-xs font-bold text-slate-400 uppercase">Selected:</span> <span class="text-sm font-bold text-brand-600 dark:text-brand-400">Row ${r+1}, Col ${c+1}</span>`;
+        picker.classList.remove('hidden');
+        actions.classList.remove('hidden');
+      }
+    }
+
+    function setSolverCellSymbol(symbolIdx) {
+      if (!solverState.activeCell) return;
+      const { r, c } = solverState.activeCell;
+      solverState.grid[r][c] = symbolIdx;
+      renderSolverGrid();
+    }
+
+    function setCellAsTarget() {
+      if (!solverState.activeCell) return;
+      const { r, c } = solverState.activeCell;
+      solverState.grid[r][c] = 'TARGET';
+      renderSolverGrid();
+    }
+
+    function clearActiveCell() {
+      if (!solverState.activeCell) return;
+      const { r, c } = solverState.activeCell;
+      solverState.grid[r][c] = null;
+      renderSolverGrid();
+    }
+
+    function solveCustomPuzzle() {
+      const N = solverState.gridSize;
+      let solveGrid = solverState.grid.map(row => [...row]);
+
+      // Check conflicts
+      for (let r = 0; r < N; r++) {
+        for (let c = 0; c < N; c++) {
+          const val = solveGrid[r][c];
+          if (val !== null && val !== 'TARGET') {
+            if (!LatinSquareSolver.isValidPlacement(solveGrid, N, r, c, val)) {
+              showSolverStatusBanner('Conflict Detected! Duplicate symbols in same row/column.', 'error');
+              return;
+            }
+          }
+        }
+      }
+
+      const hasSolution = LatinSquareSolver.solve(solveGrid, N);
+
+      if (hasSolution) {
+        let targetResults = [];
+        for (let r = 0; r < N; r++) {
+          for (let c = 0; c < N; c++) {
+            if (solverState.grid[r][c] === 'TARGET') {
+              const solvedSym = solverState.activeSymbols[solveGrid[r][c]];
+              targetResults.push(`[R${r+1}, C${c+1}] = <strong>${solvedSym.name}</strong>`);
+            }
+          }
+        }
+
+        solverState.grid = solveGrid;
+        renderSolverGrid();
+
+        if (targetResults.length > 0) {
+          showSolverStatusBanner(`Matrix Solved! <br/> ${targetResults.join(' | ')}`, 'success');
+        } else {
+          showSolverStatusBanner('Matrix solved successfully!', 'success');
+        }
+      } else {
+        showSolverStatusBanner('No valid Latin Square solution exists for this configuration.', 'error');
+      }
+    }
+
+    function showSolverStatusBanner(message, type) {
+      const banner = document.getElementById('solver-status-banner');
+      banner.classList.remove('hidden', 'bg-emerald-100', 'text-emerald-800', 'border-emerald-300', 'dark:bg-emerald-950', 'dark:text-emerald-200', 'bg-rose-100', 'text-rose-800', 'border-rose-300', 'dark:bg-rose-950', 'dark:text-rose-200');
+
+      if (type === 'success') {
+        banner.classList.add('bg-emerald-100', 'text-emerald-800', 'border-emerald-300', 'dark:bg-emerald-950', 'dark:text-emerald-200');
+      } else {
+        banner.classList.add('bg-rose-100', 'text-rose-800', 'border-rose-300', 'dark:bg-rose-950', 'dark:text-rose-200');
+      }
+
+      banner.innerHTML = message;
+    }
+
+    function hideSolverStatusBanner() {
+      document.getElementById('solver-status-banner').classList.add('hidden');
+    }
+
+    /* ==========================================================================
+       UTILITY HELPERS
+       ========================================================================== */
+
+    function switchMode(mode) {
+      currentMode = mode;
+      const playBtn = document.getElementById('btn-mode-play');
+      const solverBtn = document.getElementById('btn-mode-solver');
+      const playSection = document.getElementById('play-mode-section');
+      const solverSection = document.getElementById('solver-mode-section');
+
+      if (mode === 'play') {
+        playBtn.className = 'px-3 py-1.5 rounded-lg bg-white dark:bg-slate-800 text-brand-600 dark:text-brand-500 shadow-sm transition';
+        solverBtn.className = 'px-3 py-1.5 rounded-lg text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition';
+        playSection.classList.remove('hidden');
+        solverSection.classList.add('hidden');
+        solverSection.classList.remove('flex');
+        playSection.classList.add('flex');
+      } else {
+        solverBtn.className = 'px-3 py-1.5 rounded-lg bg-white dark:bg-slate-800 text-brand-600 dark:text-brand-500 shadow-sm transition';
+        playBtn.className = 'px-3 py-1.5 rounded-lg text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition';
+        solverSection.classList.remove('hidden');
+        playSection.classList.add('hidden');
+        playSection.classList.remove('flex');
+        solverSection.classList.add('flex');
+        initSolverMode();
+      }
+    }
+
+    function toggleDarkMode() {
+      const isDark = document.documentElement.classList.toggle('dark');
+      const themeIcon = document.getElementById('theme-icon');
+      if (isDark) {
+        themeIcon.className = 'fa-solid fa-sun text-lg text-amber-400';
+      } else {
+        themeIcon.className = 'fa-solid fa-moon text-lg';
+      }
+    }
+
+    function showToast(message, type = 'info') {
+      const toast = document.getElementById('toast-message');
+      const text = document.getElementById('toast-text');
+      const icon = document.getElementById('toast-icon');
+
+      text.innerText = message;
+
+      if (type === 'success') {
+        toast.className = toast.className.replace(/bg-\S+/, 'bg-emerald-600');
+        icon.className = 'fa-solid fa-circle-check';
+      } else if (type === 'error') {
+        toast.className = toast.className.replace(/bg-\S+/, 'bg-rose-600');
+        icon.className = 'fa-solid fa-circle-xmark';
+      } else {
+        toast.className = toast.className.replace(/bg-\S+/, 'bg-brand-600');
+        icon.className = 'fa-solid fa-circle-info';
+      }
+
+      toast.classList.remove('opacity-0', 'pointer-events-none', 'translate-y-4');
+
+      setTimeout(() => {
+        toast.classList.add('opacity-0', 'pointer-events-none', 'translate-y-4');
+      }, 2500);
+    }
+
+    window.onload = function() {
+      switchMode('solver');
+    };
+  </script>
+</body>
+</html>
